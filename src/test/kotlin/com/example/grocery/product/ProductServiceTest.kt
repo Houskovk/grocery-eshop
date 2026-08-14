@@ -1,49 +1,54 @@
 package com.example.grocery.product
 
+import io.quarkus.test.junit.QuarkusTest
+import jakarta.inject.Inject
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 
-class ProductServiceTest {
+@QuarkusTest
+class ProductRepositoryTest {
 
-    @Test
-    fun getAllProducts_shouldReturnInitialProductsCount() {
-        val productService = ProductService()
+    @Inject
+    lateinit var productRepository: ProductRepository
 
-        val products = productService.getAllProducts()
-
-        assertEquals(5, products.size)
+    @AfterEach
+    fun cleanup() {
+        productRepository.deleteAll()
     }
 
     @Test
-    fun getProductById_shouldReturnCorrectProduct() {
-        val productService = ProductService()
+    fun persist_shouldStoreProductInMongoDB() {
+        val product = Product(
+            name = "Milk",
+            priceInCents = 249
+        )
 
-        val product = productService.getProductById("1")
+        productRepository.persist(product)
 
-        assertEquals("Milk", product?.name)
-        assertEquals(249, product?.priceInCents)
+        assertNotNull(product.id)
+        assertEquals(1L, productRepository.count())
     }
 
     @Test
-    fun getProductById_shouldReturnNull_whenProductDoesNotExist() {
-        val productService = ProductService()
+    fun listAll_shouldReturnStoredProducts() {
+        productRepository.persist(
+            Product(
+                name = "Milk",
+                priceInCents = 249
+            )
+        )
 
-        val product = productService.getProductById("999")
+        productRepository.persist(
+            Product(
+                name = "Bread",
+                priceInCents = 179
+            )
+        )
 
-        assertNull(product)
-    }
+        val products = productRepository.listAll()
 
-    @Test
-    fun addProduct_shouldAddProductSuccessfully() {
-        val productService = ProductService()
-        val newProduct = Product(id = "6", name = "Butter", priceInCents = 399)
-
-        productService.addProduct(newProduct)
-
-        val products = productService.getAllProducts()
-
-        assertEquals(6, products.size)
-        assertEquals(newProduct, productService.getProductById("6"))
+        assertEquals(2, products.size)
     }
 }

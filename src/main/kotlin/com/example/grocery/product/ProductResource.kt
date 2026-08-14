@@ -14,9 +14,7 @@ import jakarta.ws.rs.core.Response
 class ProductResource(private val productService: ProductService) {
 
     @GET
-    fun getAllProducts(): List<Product> {
-        return productService.getAllProducts()
-    }
+    fun getAllProducts(): List<ProductResponse> = productService.getAllProducts()
 
     @GET
     @Path("/{id}")
@@ -32,8 +30,8 @@ class ProductResource(private val productService: ProductService) {
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    fun addProduct(product: Product): Response {
-        val createdProduct = productService.addProduct(product)
+    fun addProduct(request: CreateProductRequest): Response {
+        val createdProduct = productService.addProduct(request)
 
         return Response
             .status(Response.Status.CREATED)

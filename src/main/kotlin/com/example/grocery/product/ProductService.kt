@@ -1,44 +1,33 @@
 package com.example.grocery.product
 
 import jakarta.enterprise.context.ApplicationScoped
+import org.bson.types.ObjectId
 
 @ApplicationScoped
-class ProductService {
+class ProductService(private val productRepository: ProductRepository) {
 
-    private val products = mutableListOf<Product>(
-        Product(id = "1", name = "Milk", priceInCents = 249),
-        Product(id = "2", name = "Bread", priceInCents = 179),
-        Product(id = "3", name = "Apples", priceInCents = 329),
-        Product(id = "4", name = "Pasta", priceInCents = 199),
-        Product(id = "5", name = "Cheese", priceInCents = 449)
-    )
+    fun getAllProducts(): List<ProductResponse> = productRepository.listAll().map {product -> product.toResponse()}
 
-    init {
-        reset()
+    fun getProductById(id: String): ProductResponse? {
+        if (!ObjectId.isValid(id)) {
+            return null
+        }
+        return productRepository.findById(ObjectId(id))?.toResponse()
     }
 
-    fun getAllProducts(): List<Product> = products
-
-    fun getProductById(id: String): Product? {
-        return products.find { product -> product.id == id }
-    }
-
-    fun addProduct(product: Product): Product {
-        products.add(product)
-        return product
-    }
-
-    // TODO: This method is added for testing purposes to reset the product list to its initial state and should be removed in production code.
-    fun reset() {
-        products.clear()
-        products.addAll(
-            listOf(
-                Product(id = "1", name = "Milk", priceInCents = 249),
-                Product(id = "2", name = "Bread", priceInCents = 179),
-                Product(id = "3", name = "Apples", priceInCents = 329),
-                Product(id = "4", name = "Pasta", priceInCents = 199),
-                Product(id = "5", name = "Cheese", priceInCents = 449)
-            )
+    fun addProduct(request: CreateProductRequest): ProductResponse {
+        val product = Product(
+            name = request.name,
+            priceInCents = request.priceInCents
         )
+        productRepository.persist(product)
+        return product.toResponse()
     }
+
+    private fun Product.toResponse(): ProductResponse =
+        ProductResponse(
+            id = requireNotNull(id).toHexString(),
+            name = name,
+            priceInCents = priceInCents
+        )
 }
