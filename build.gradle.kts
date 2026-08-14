@@ -19,7 +19,9 @@ dependencies {
     implementation("io.quarkus:quarkus-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("io.quarkus:quarkus-arc")
+    implementation("io.quarkus:quarkus-mongodb-panache-kotlin")
     testImplementation("io.quarkus:quarkus-junit")
+    testImplementation("io.rest-assured:rest-assured")
 }
 
 group = "com.shopexample.grocery"
