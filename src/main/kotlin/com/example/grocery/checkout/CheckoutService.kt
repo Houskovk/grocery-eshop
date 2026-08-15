@@ -28,12 +28,17 @@ class CheckoutService(
         }
 
         val orderItems = cart.items.map { cartItem ->
+            if (cartItem.quantity <= 0) {
+                throw BadRequestException("Invalid cart quantity")
+            }
+
             val product = productService.getProductById(cartItem.productId) ?: throw NotFoundException("Product not found: ${cartItem.productId}")
 
             val subtotal = product.priceInCents * cartItem.quantity
 
             OrderItem(
                 productId = product.id,
+                productName = product.name,
                 quantity = cartItem.quantity,
                 unitPriceInCents = product.priceInCents,
                 subtotalInCents = subtotal
