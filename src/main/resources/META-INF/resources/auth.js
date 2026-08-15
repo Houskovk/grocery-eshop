@@ -82,7 +82,56 @@ function logout() {
     window.location.href = "/index.html";
 }
 
+function updateCartCount(cart) {
+    const cartCountElement = document.getElementById("cart-count");
+
+    if (!cartCountElement) {
+        return;
+    }
+
+    const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+
+    cartCountElement.textContent = count;
+}
+
+async function refreshCartCount() {
+    const cartCountElement = document.getElementById("cart-count");
+
+    if (!cartCountElement) {
+        return;
+    }
+
+    const token = getToken();
+
+    if (!token) {
+        cartCountElement.textContent = "0";
+        return;
+    }
+
+    try {
+        const response = await fetch("/cart", {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            cartCountElement.textContent = "0";
+            return;
+        }
+
+        const cart = await response.json();
+
+        updateCartCount(cart);
+
+    } catch (error) {
+        console.error(error);
+        cartCountElement.textContent = "0";
+    }
+}
+
 document.addEventListener("DOMContentLoaded", refreshAuthUI);
+document.addEventListener("DOMContentLoaded", refreshCartCount);
 
 
 
