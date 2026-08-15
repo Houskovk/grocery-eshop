@@ -9,5 +9,6 @@ data class User(
     @BsonId var id: ObjectId? = null,
     var username: String = "",
     var passwordHash: String = "",
-    var role: String = "USER"
+    var role: String = "USER",
+    var balanceInCents: Long = 0
 )
