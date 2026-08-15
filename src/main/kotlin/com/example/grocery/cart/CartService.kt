@@ -5,6 +5,8 @@ import com.example.grocery.cart.dto.CartResponse
 import com.example.grocery.product.Product
 import com.example.grocery.product.ProductRepository
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.ws.rs.BadRequestException
+import jakarta.ws.rs.NotFoundException
 import org.bson.types.ObjectId
 
 @ApplicationScoped
@@ -26,7 +28,9 @@ class CartService(private val cartRepository: CartRepository, private val produc
 
     fun addItem(userId: String, productId: String, quantity: Int): Cart {
 
-        require(quantity > 0) { "Quantity must be greater than zero" }
+        if (quantity <= 0) {
+            throw BadRequestException("Quantity must be greater than zero")
+        }
 
         findProductOrThrow(productId)
 
@@ -46,11 +50,13 @@ class CartService(private val cartRepository: CartRepository, private val produc
 
     fun updateQuantity(userId: String, productId: String, quantity: Int): Cart {
 
-        require(quantity > 0) { "Quantity must be greater than zero" }
+        if (quantity <= 0) {
+            throw BadRequestException("Quantity must be greater than zero")
+        }
 
         val cart = getOrCreateCart(userId)
 
-        val item = cart.items.find { it.productId == productId } ?: throw IllegalArgumentException("Product not found in cart")
+        val item = cart.items.find { it.productId == productId } ?: throw NotFoundException("Product not found in cart")
 
         item.quantity = quantity
 
@@ -86,7 +92,7 @@ class CartService(private val cartRepository: CartRepository, private val produc
         val itemResponses = cart.items.mapNotNull { item ->
             val product = try {
                 findProductOrThrow(item.productId)
-            } catch (e: IllegalArgumentException) {
+            } catch (e: NotFoundException) {
                 null
             }
 
@@ -112,10 +118,11 @@ class CartService(private val cartRepository: CartRepository, private val produc
         val objectId = try {
             ObjectId(productId)
         } catch (exception: IllegalArgumentException) {
-            throw IllegalArgumentException("Invalid product id")
+            throw NotFoundException("Product not found")
         }
 
-        return productRepository.findById(objectId) ?: throw IllegalArgumentException("Product not found")
+        return productRepository.findById(objectId) ?: throw NotFoundException("Product not found")
     }
 
 }
+
