@@ -2,6 +2,13 @@ async function loadProfile() {
 
     const token = localStorage.getItem("token");
 
+    const profileElement = document.getElementById("profile");
+
+    if (!token) {
+        window.location.href = "/login.html";
+        return;
+    }
+
     const response = await fetch("/users/me", {
         headers: {
             "Authorization": `Bearer ${token}`
@@ -9,16 +16,18 @@ async function loadProfile() {
     });
 
     if (!response.ok) {
-        document.getElementById("profile")
-            .textContent = "Please log in";
-
+        localStorage.removeItem("token");
+        window.location.href = "/login.html";
         return;
     }
 
     const user = await response.json();
 
-    document.getElementById("profile").innerHTML = `
+    profileElement.innerHTML = `
         <p>Username: ${user.username}</p>
         <p>Role: ${user.role}</p>
     `;
 }
+
+document.addEventListener("DOMContentLoaded", loadProfile);
+

@@ -27,13 +27,10 @@ async function login() {
     localStorage.setItem("token", data.token);
 
     document.getElementById("loginMessage")
-        .textContent = "Logged in!";
+        .textContent = "Logged in! Redirecting...";
 
-    function logout() {
-
-        localStorage.removeItem("token");
-
-        document.getElementById("profile")
-            .textContent = "Logged out";
-    }
+    setTimeout(() => {
+        window.location.href = "/index.html";
+    }, 500);
 }
+

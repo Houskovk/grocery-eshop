@@ -17,7 +17,11 @@ async function register() {
 
     if (response.ok) {
         document.getElementById("registerMessage")
-            .textContent = "Registration successful";
+            .textContent = "Registration successful! Redirecting to login...";
+
+        setTimeout(() => {
+            window.location.href = "/login.html";
+        }, 1000);
     } else {
         document.getElementById("registerMessage")
             .textContent = "Registration failed";
