@@ -58,13 +58,5 @@ function renderProducts(products, container) {
     }
 }
 
-const currencyFormatter = new Intl.NumberFormat("en-IE", {
-        style: "currency",
-        currency: "EUR"
-    });
-
-function formatPrice(priceInCents) {
-    return currencyFormatter.format(priceInCents / 100);
-}
 
 loadProducts();

@@ -2,6 +2,8 @@ package com.example.grocery.user
 
 import io.quarkus.elytron.security.common.BcryptUtil
 import jakarta.enterprise.context.ApplicationScoped
+import jakarta.ws.rs.BadRequestException
+import jakarta.ws.rs.NotFoundException
 
 @ApplicationScoped
 class UserService(private val userRepository: UserRepository) {
@@ -42,5 +44,30 @@ class UserService(private val userRepository: UserRepository) {
         }
 
         return user
+    }
+
+    fun getBalance(username: String): Long {
+        val user = userRepository.findByUsername(username) ?: throw NotFoundException("User not found")
+
+        return user.balanceInCents
+    }
+
+    fun addBalance(username: String, amountInCents: Long): Long {
+        if (amountInCents <= 0) {
+            throw BadRequestException("Amount must be greater than zero")
+        }
+
+        val user = userRepository.findByUsername(username) ?: throw NotFoundException("User not found")
+
+        val newBalance = try {
+            Math.addExact(user.balanceInCents, amountInCents)
+        } catch (e: ArithmeticException) {
+            throw BadRequestException("Balance would be too large")
+        }
+
+        user.balanceInCents = newBalance
+        userRepository.update(user)
+
+        return user.balanceInCents
     }
 }

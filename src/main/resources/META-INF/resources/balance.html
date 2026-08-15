@@ -8,7 +8,7 @@
             content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Register - Grocery Shop</title>
+    <title>My Wallet - Grocery Shop</title>
 
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -28,20 +28,24 @@
 <main class="container">
 
     <section class="auth-form">
-        <h2>Register</h2>
+        <h2>My Wallet</h2>
 
-        <input id="registerUsername" placeholder="Username">
-        <input id="registerPassword" type="password" placeholder="Password">
+        <p>Current balance</p>
+        <p id="balance-amount" class="balance-amount">Loading...</p>
 
-        <button type="button" onclick="register()">Register</button>
+        <label for="addAmount">Add funds (EUR)</label>
+        <input id="addAmount" type="number" min="0.01" step="0.01" placeholder="0.00">
 
-        <p id="registerMessage"></p>
+        <button type="button" onclick="addFunds()">Add Funds</button>
+
+        <p id="balanceMessage"></p>
     </section>
 
 </main>
 
 <script src="/auth.js"></script>
-<script src="/register.js"></script>
+<script src="/balance.js"></script>
 
 </body>
 </html>
+
