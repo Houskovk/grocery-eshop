@@ -70,4 +70,23 @@ class UserService(private val userRepository: UserRepository) {
 
         return user.balanceInCents
     }
+
+    fun getUserById(userId: String): User {
+
+        val objectId = try {
+            org.bson.types.ObjectId(userId)
+        } catch (e: IllegalArgumentException) {
+            throw BadRequestException("Invalid user ID format")
+        }
+
+        val user = userRepository.findById(objectId) ?: throw NotFoundException("User not found")
+        return user
+    }
+
+    fun updateBalance(userId: String, newBalanceInCents: Long): User {
+        val user = getUserById(userId)
+        user.balanceInCents = newBalanceInCents
+        userRepository.update(user)
+        return user
+    }
 }

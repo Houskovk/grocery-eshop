@@ -198,3 +198,42 @@ header p {
     border: 1px solid #ccc;
     border-radius: 6px;
 }
+
+#checkout-button {
+    border: 0;
+    border-radius: 6px;
+    padding: 10px 20px;
+    margin-right: 8px;
+    font-size: 1rem;
+    background: #1a7a3a;
+    color: white;
+    cursor: pointer;
+}
+
+#checkout-button:hover {
+    background: #145c2c;
+}
+
+.order-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+}
+
+.order-card h3 {
+    margin-top: 0;
+}
+
+.order-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0;
+}
+
+.order-card li {
+    padding: 4px 0;
+    border-bottom: 1px solid #eee;
+}
+
