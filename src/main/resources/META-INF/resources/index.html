@@ -25,17 +25,38 @@
 <main class="container">
 
     <section>
+        <h2>Register</h2>
+        <input id="registerUsername" placeholder="Username">
+        <input id="registerPassword" type="password" placeholder="Password">
+        <button onclick="register()">Register</button>
+        <p id="registerMessage"></p>
+    </section>
+
+    <section>
+        <h2>Login</h2>
+        <input id="loginUsername" placeholder="Username">
+        <input id="loginPassword" type="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <p id="loginMessage"></p>
+        <button onclick="logout()">Logout</button>
+    </section>
+
+    <section>
+        <button onclick="loadProfile()">My Profile</button>
+        <div id="profile"></div>
+    </section>
+
+    <section>
         <h2>Products</h2>
-
-        <div id="product-status">
-            Loading products...
-        </div>
-
+        <div id="product-status">Loading products...</div>
         <div id="product-list" class="product-grid"></div>
     </section>
 
 </main>
 
+<script src="/register.js"></script>
+<script src="/login.js"></script>
+<script src="/profile.js"></script>
 <script src="/app.js"></script>
 
 </body>

@@ -8,6 +8,14 @@ class UserService(private val userRepository: UserRepository) {
 
     fun register(username: String, password: String): User {
 
+        if (username.isBlank()) {
+            throw IllegalArgumentException("Username cannot be blank")
+        }
+
+        if (password.length < 8) {
+            throw IllegalArgumentException("Password must be at least 8 characters long")
+        }
+
         val existingUser = userRepository.findByUsername(username)
 
         if (existingUser != null) {
