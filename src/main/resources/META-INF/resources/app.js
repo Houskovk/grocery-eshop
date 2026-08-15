@@ -50,12 +50,44 @@ function renderProducts(products, container) {
         button.type = "button";
         button.className = "add-to-cart-button";
         button.textContent = "Add to Cart";
-        button.disabled = true;
+        button.onclick = () => addToCart(product.id);
 
         card.append(name, price, button);
 
         container.appendChild(card);
     }
+}
+
+async function addToCart(productId) {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        alert("Please log in first.");
+        return;
+    }
+
+    const response = await fetch("/cart/items", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            productId: productId,
+            quantity: 1
+        })
+    });
+
+    if (!response.ok) {
+        alert("Could not add item to cart.");
+        return;
+    }
+
+    const cart = await response.json();
+
+    console.log("Cart:", cart);
+
+    updateCartCount(cart);
 }
 
 
