@@ -4,3 +4,6 @@
 out
 *.iml
 README.md
+build
+**/build
+**/.gradle

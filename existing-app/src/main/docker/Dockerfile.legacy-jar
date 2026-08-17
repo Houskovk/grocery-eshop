@@ -1,13 +1,13 @@
 ####
 # This Dockerfile is used in order to build a container that runs the Quarkus application in JVM mode
 #
-# Before building the container image run:
+# Before building the container image run (from the repository root):
 #
-# ./gradlew build -Dquarkus.package.jar.type=legacy-jar
+# ./gradlew :existing-app:build -Dquarkus.package.jar.type=legacy-jar
 #
-# Then, build the image with:
+# Then, build the image with (context must be existing-app/, since build/ is resolved relative to it):
 #
-# docker build -f src/main/docker/Dockerfile.legacy-jar -t quarkus/grocery-eshop-legacy-jar .
+# docker build -f existing-app/src/main/docker/Dockerfile.legacy-jar -t quarkus/grocery-eshop-legacy-jar existing-app
 #
 # Then run the container using:
 #

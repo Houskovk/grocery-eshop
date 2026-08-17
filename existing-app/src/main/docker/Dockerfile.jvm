@@ -1,0 +1,44 @@
+# NOTE: build context for this Dockerfile must be the repository ROOT
+# (grocery-eshop/), not existing-app/, because this is a Gradle multi-project
+# build: settings.gradle.kts and the other modules it includes must be
+# present for the Gradle configuration phase to succeed, even though only
+# the ":existing-app" module is actually built here.
+#
+# docker build -f existing-app/src/main/docker/Dockerfile.jvm -t grocery-eshop/existing-app .
+
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24 AS build
+
+WORKDIR /project
+
+COPY gradlew .
+COPY gradle gradle
+COPY settings.gradle.kts .
+COPY gradle.properties .
+
+# COPY always writes as root:root regardless of the active USER, but the
+# base image's default user (uid 185) is who actually runs the RUN steps.
+# --chown here makes it the owner so Gradle can write build output / caches
+# into these directories, while running as a normal (non-root) user so the
+# resulting files keep standard, world-readable permissions for the final
+# runtime stage.
+COPY --chown=185:0 existing-app existing-app
+COPY --chown=185:0 services services
+
+RUN sh ./gradlew :existing-app:build -x test --no-daemon
+
+
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24
+
+ENV LANGUAGE='en_US:en'
+
+WORKDIR /work/
+
+COPY --from=build /project/existing-app/build/quarkus-app/lib/ /work/lib/
+COPY --from=build /project/existing-app/build/quarkus-app/*.jar /work/
+COPY --from=build /project/existing-app/build/quarkus-app/app/ /work/app/
+COPY --from=build /project/existing-app/build/quarkus-app/quarkus/ /work/quarkus/
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "/work/quarkus-run.jar"]
+

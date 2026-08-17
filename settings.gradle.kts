@@ -10,4 +10,7 @@ pluginManagement {
         id(quarkusPluginId) version quarkusPluginVersion
     }
 }
-rootProject.name="grocery-eshop"
+rootProject.name = "grocery-eshop"
+
+include("existing-app")
+include("services:catalog-service")

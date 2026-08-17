@@ -16,7 +16,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: src/main/docker/Dockerfile.jvm
+      dockerfile: existing-app/src/main/docker/Dockerfile.jvm
     container_name: grocery-eshop
     depends_on:
       mongodb:
@@ -31,7 +31,7 @@ services:
       JWT_SIGN_KEY_LOCATION: /work/keys/privateKey.pem
       JWT_VERIFY_KEY_LOCATION: /work/keys/publicKey.pem
     volumes:
-      - ./src/main/resources/keys:/work/keys:ro
+      - ./existing-app/src/main/resources/keys:/work/keys:ro
 
 volumes:
   grocery-mongodb-data:

@@ -1,13 +1,13 @@
 ####
 # This Dockerfile is used in order to build a container that runs the Quarkus application in native (no JVM) mode.
 #
-# Before building the container image run:
+# Before building the container image run (from the repository root):
 #
-# ./gradlew build -Dquarkus.native.enabled=true
+# ./gradlew :existing-app:build -Dquarkus.native.enabled=true
 #
-# Then, build the image with:
+# Then, build the image with (context must be existing-app/, since build/ is resolved relative to it):
 #
-# docker build -f src/main/docker/Dockerfile.native -t quarkus/grocery-eshop .
+# docker build -f existing-app/src/main/docker/Dockerfile.native -t quarkus/grocery-eshop existing-app
 #
 # Then run the container using:
 #
