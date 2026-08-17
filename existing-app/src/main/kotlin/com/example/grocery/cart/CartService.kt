@@ -3,12 +3,11 @@ package com.example.grocery.cart
 import com.example.grocery.cart.dto.CartItemResponse
 import com.example.grocery.cart.dto.CartResponse
 import com.example.grocery.client.CatalogClient
-import com.example.grocery.client.CatalogProductResponse
+import com.example.grocery.client.dto.CatalogProductResponse
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.BadRequestException
 import jakarta.ws.rs.NotFoundException
 import jakarta.ws.rs.WebApplicationException
-import org.bson.types.ObjectId
 import org.eclipse.microprofile.rest.client.inject.RestClient
 
 @ApplicationScoped

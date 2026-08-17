@@ -1,5 +1,6 @@
 package com.example.grocery.client
 
+import com.example.grocery.client.dto.CatalogProductResponse
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.GET
 import jakarta.ws.rs.Path

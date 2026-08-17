@@ -1,12 +1,14 @@
 package com.example.grocery.cart
 
 import com.example.grocery.client.CatalogClient
-import com.example.grocery.client.CatalogProductResponse
+import com.example.grocery.client.dto.CatalogProductResponse
 import com.example.grocery.testsupport.MockedCatalogClient
+import com.example.grocery.testsupport.TestJwt
 import io.quarkus.test.junit.QuarkusTest
 import io.quarkus.test.InjectMock
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
+import org.bson.types.ObjectId
 import org.eclipse.microprofile.rest.client.inject.RestClient
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.AfterEach
@@ -39,52 +41,14 @@ class CartResourceTest {
         productBackend.clear()
     }
 
-    private fun register(username: String, password: String) {
-        given()
-            .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                    "username": "$username",
-                    "password": "$password"
-                }
-                """.trimIndent()
-            )
-            .`when`()
-            .post("/auth/register")
-            .then()
-            .statusCode(201)
-    }
-
-    private fun login(username: String, password: String): String {
-        return given()
-            .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                    "username": "$username",
-                    "password": "$password"
-                }
-                """.trimIndent()
-            )
-            .`when`()
-            .post("/auth/login")
-            .then()
-            .statusCode(200)
-            .extract()
-            .path("token")
-    }
-
     private fun createTestUserToken(): String {
-        val username = "cart-user-${System.nanoTime()}"
-        val password = "password123"
-
-        register(username, password)
-        return login(username, password)
+        val userId = ObjectId().toHexString()
+        return TestJwt.generate(userId)
     }
 
     private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): CatalogProductResponse =
         productBackend.addProduct(name = name, priceInCents = priceInCents)
+
 
     @Test
     fun getCart_shouldRequireAuthentication() {

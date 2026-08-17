@@ -3,11 +3,11 @@ package com.example.grocery.checkout
 import com.example.grocery.cart.CartRepository
 import com.example.grocery.cart.CartService
 import com.example.grocery.client.CatalogClient
-import com.example.grocery.client.CatalogProductResponse
+import com.example.grocery.client.dto.CatalogProductResponse
+import com.example.grocery.client.UserClient
 import com.example.grocery.order.OrderRepository
 import com.example.grocery.testsupport.MockedCatalogClient
-import com.example.grocery.user.User
-import com.example.grocery.user.UserRepository
+import com.example.grocery.testsupport.MockedUserClient
 import io.quarkus.test.junit.QuarkusTest
 import io.quarkus.test.InjectMock
 import jakarta.inject.Inject
@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito
+import org.mockito.kotlin.any
 
 @QuarkusTest
 class CheckoutServiceTest {
@@ -34,9 +35,6 @@ class CheckoutServiceTest {
     lateinit var cartService: CartService
 
     @Inject
-    lateinit var userRepository: UserRepository
-
-    @Inject
     lateinit var cartRepository: CartRepository
 
     @Inject
@@ -46,7 +44,12 @@ class CheckoutServiceTest {
     @RestClient
     lateinit var catalogClient: CatalogClient
 
+    @InjectMock
+    @RestClient
+    lateinit var userClient: UserClient
+
     private val productBackend = MockedCatalogClient()
+    private val userBackend = MockedUserClient()
 
     @BeforeEach
     fun setup() {
@@ -56,26 +59,26 @@ class CheckoutServiceTest {
         Mockito.`when`(catalogClient.getProducts()).thenAnswer {
             productBackend.getProducts()
         }
+        Mockito.`when`(userClient.getUser(anyString())).thenAnswer { invocation ->
+            userBackend.getUser(invocation.getArgument(0))
+        }
+        Mockito.`when`(userClient.updateBalance(anyString(), any())).thenAnswer { invocation ->
+            userBackend.updateBalance(invocation.getArgument(0), invocation.getArgument(1))
+        }
     }
 
     @AfterEach
     fun cleanup() {
-        userRepository.deleteAll()
         productBackend.clear()
+        userBackend.clear()
         cartRepository.deleteAll()
         orderRepository.deleteAll()
     }
 
-    private fun createTestUser(balanceInCents: Long = 0): User {
-        val user = User(
-            username = "checkout-user-${System.nanoTime()}",
-            passwordHash = "not-used-in-this-test",
-            balanceInCents = balanceInCents
-        )
-
-        userRepository.persist(user)
-
-        return user
+    private fun createTestUser(balanceInCents: Long = 0): String {
+        val userId = ObjectId().toHexString()
+        userBackend.seedUser(userId, balanceInCents)
+        return userId
     }
 
     private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): CatalogProductResponse =
@@ -83,12 +86,12 @@ class CheckoutServiceTest {
 
     @Test
     fun checkout_shouldCreateOrder_whenCartHasItems() {
-        val user = createTestUser(balanceInCents = 10000)
+        val userId = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id, 2)
+        cartService.addItem(userId, product.id, 2)
 
-        val result = checkoutService.checkout(user.id.toString())
+        val result = checkoutService.checkout(userId)
 
         assertEquals(498L, result.totalInCents)
         assertEquals(1, orderRepository.count())
@@ -96,14 +99,14 @@ class CheckoutServiceTest {
 
     @Test
     fun checkout_shouldPersistOrderWithProductSnapshot() {
-        val user = createTestUser(balanceInCents = 10000)
+        val userId = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(name = "Milk", priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id, 2)
+        cartService.addItem(userId, product.id, 2)
 
-        checkoutService.checkout(user.id.toString())
+        checkoutService.checkout(userId)
 
-        val orders = orderRepository.findByUserId(user.id.toString())
+        val orders = orderRepository.findByUserId(userId)
 
         assertEquals(1, orders.size)
 
@@ -117,68 +120,64 @@ class CheckoutServiceTest {
 
     @Test
     fun checkout_shouldDeductTotalFromUserBalance() {
-        val user = createTestUser(balanceInCents = 10000)
+        val userId = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id, 2)
+        cartService.addItem(userId, product.id, 2)
 
-        checkoutService.checkout(user.id.toString())
+        checkoutService.checkout(userId)
 
-        val persistedUser = userRepository.findById(user.id!!)
-
-        assertEquals(10000L - 498L, persistedUser?.balanceInCents)
+        assertEquals(10000L - 498L, userBackend.getUser(userId).balanceInCents)
     }
 
     @Test
     fun checkout_shouldClearCart_afterSuccessfulCheckout() {
-        val user = createTestUser(balanceInCents = 10000)
+        val userId = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id, 2)
+        cartService.addItem(userId, product.id, 2)
 
-        checkoutService.checkout(user.id.toString())
+        checkoutService.checkout(userId)
 
-        val cart = cartService.getCart(user.id.toString())
+        val cart = cartService.getCart(userId)
 
         assertTrue(cart.items.isEmpty())
     }
 
     @Test
     fun checkout_shouldThrowBadRequestException_whenCartIsEmpty() {
-        val user = createTestUser(balanceInCents = 10000)
+        val userId = createTestUser(balanceInCents = 10000)
 
         assertThrows(BadRequestException::class.java) {
-            checkoutService.checkout(user.id.toString())
+            checkoutService.checkout(userId)
         }
     }
 
     @Test
     fun checkout_shouldThrowBadRequestException_whenBalanceIsInsufficient() {
-        val user = createTestUser(balanceInCents = 100)
+        val userId = createTestUser(balanceInCents = 100)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id, 2)
+        cartService.addItem(userId, product.id, 2)
 
         assertThrows(BadRequestException::class.java) {
-            checkoutService.checkout(user.id.toString())
+            checkoutService.checkout(userId)
         }
 
-        val persistedUser = userRepository.findById(user.id!!)
-
-        assertEquals(100L, persistedUser?.balanceInCents)
+        assertEquals(100L, userBackend.getUser(userId).balanceInCents)
     }
 
     @Test
     fun checkout_shouldThrowBadRequestException_whenProductWasDeletedAfterBeingAddedToCart() {
-        val user = createTestUser(balanceInCents = 10000)
+        val userId = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id, 1)
+        cartService.addItem(userId, product.id, 1)
 
         productBackend.removeProduct(product.id)
 
         assertThrows(BadRequestException::class.java) {
-            checkoutService.checkout(user.id.toString())
+            checkoutService.checkout(userId)
         }
     }
 
@@ -189,6 +188,3 @@ class CheckoutServiceTest {
         }
     }
 }
-
-
-

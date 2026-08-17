@@ -14,3 +14,5 @@ rootProject.name = "grocery-eshop"
 
 include("existing-app")
 include("services:catalog-service")
+include("services:user-service")
+include("services:order-service")

@@ -1,12 +1,16 @@
 package com.example.grocery.checkout
 
 import com.example.grocery.client.CatalogClient
-import com.example.grocery.client.CatalogProductResponse
+import com.example.grocery.client.dto.CatalogProductResponse
+import com.example.grocery.client.UserClient
 import com.example.grocery.testsupport.MockedCatalogClient
+import com.example.grocery.testsupport.MockedUserClient
+import com.example.grocery.testsupport.TestJwt
 import io.quarkus.test.junit.QuarkusTest
 import io.quarkus.test.InjectMock
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
+import org.bson.types.ObjectId
 import org.eclipse.microprofile.rest.client.inject.RestClient
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.notNullValue
@@ -15,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito
+import org.mockito.kotlin.any
 
 @QuarkusTest
 class CheckoutResourceTest {
@@ -23,7 +28,12 @@ class CheckoutResourceTest {
     @RestClient
     lateinit var catalogClient: CatalogClient
 
+    @InjectMock
+    @RestClient
+    lateinit var userClient: UserClient
+
     private val productBackend = MockedCatalogClient()
+    private val userBackend = MockedUserClient()
 
     @BeforeEach
     fun setup() {
@@ -33,77 +43,28 @@ class CheckoutResourceTest {
         Mockito.`when`(catalogClient.getProducts()).thenAnswer {
             productBackend.getProducts()
         }
+        Mockito.`when`(userClient.getUser(anyString())).thenAnswer { invocation ->
+            userBackend.getUser(invocation.getArgument(0))
+        }
+        Mockito.`when`(userClient.updateBalance(anyString(), any())).thenAnswer { invocation ->
+            userBackend.updateBalance(invocation.getArgument(0), invocation.getArgument(1))
+        }
     }
 
     @AfterEach
     fun cleanup() {
         productBackend.clear()
+        userBackend.clear()
     }
 
-    private fun register(username: String, password: String) {
-        given()
-            .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                    "username": "$username",
-                    "password": "$password"
-                }
-                """.trimIndent()
-            )
-            .`when`()
-            .post("/auth/register")
-            .then()
-            .statusCode(201)
-    }
-
-    private fun login(username: String, password: String): String {
-        return given()
-            .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                    "username": "$username",
-                    "password": "$password"
-                }
-                """.trimIndent()
-            )
-            .`when`()
-            .post("/auth/login")
-            .then()
-            .statusCode(200)
-            .extract()
-            .path("token")
-    }
-
-    private fun createTestUserToken(): String {
-        val username = "checkout-user-${System.nanoTime()}"
-        val password = "password123"
-
-        register(username, password)
-        return login(username, password)
+    private fun createTestUserToken(balanceInCents: Long = 0): String {
+        val userId = ObjectId().toHexString()
+        userBackend.seedUser(userId, balanceInCents)
+        return TestJwt.generate(userId)
     }
 
     private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): CatalogProductResponse =
         productBackend.addProduct(name = name, priceInCents = priceInCents)
-
-    private fun addFunds(token: String, amountInCents: Long) {
-        given()
-            .auth()
-            .oauth2(token)
-            .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                    "amountInCents": $amountInCents
-                }
-                """.trimIndent()
-            )
-            .`when`()
-            .post("/users/me/balance/add")
-            .then()
-            .statusCode(200)
-    }
 
     private fun addToCart(token: String, productId: String, quantity: Int) {
         given()
@@ -135,11 +96,10 @@ class CheckoutResourceTest {
 
     @Test
     fun checkout_shouldCompletePurchase_whenCartHasItemsAndBalanceIsSufficient() {
-        val token = createTestUserToken()
+        val token = createTestUserToken(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        addFunds(token, 10000)
-        addToCart(token, product.id.toString(), 2)
+        addToCart(token, product.id, 2)
 
         given()
             .auth()
@@ -155,9 +115,7 @@ class CheckoutResourceTest {
 
     @Test
     fun checkout_shouldRejectCheckout_whenCartIsEmpty() {
-        val token = createTestUserToken()
-
-        addFunds(token, 10000)
+        val token = createTestUserToken(balanceInCents = 10000)
 
         given()
             .auth()
@@ -173,7 +131,7 @@ class CheckoutResourceTest {
         val token = createTestUserToken()
         val product = createTestProduct(priceInCents = 249)
 
-        addToCart(token, product.id.toString(), 2)
+        addToCart(token, product.id, 2)
 
         given()
             .auth()
@@ -186,11 +144,10 @@ class CheckoutResourceTest {
 
     @Test
     fun checkout_shouldMakeOrderAvailable_afterSuccessfulCheckout() {
-        val token = createTestUserToken()
+        val token = createTestUserToken(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        addFunds(token, 10000)
-        addToCart(token, product.id.toString(), 2)
+        addToCart(token, product.id, 2)
 
         given()
             .auth()
@@ -211,4 +168,3 @@ class CheckoutResourceTest {
             .body("[0].totalInCents", equalTo(498))
     }
 }
-

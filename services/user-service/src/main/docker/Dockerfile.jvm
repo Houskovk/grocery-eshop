@@ -1,0 +1,29 @@
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24 AS build
+
+WORKDIR /project
+
+COPY gradlew .
+COPY gradle gradle
+COPY settings.gradle.kts .
+COPY gradle.properties .
+
+COPY --chown=185:0 existing-app existing-app
+COPY --chown=185:0 services services
+
+RUN sh ./gradlew :services:user-service:build -x test --no-daemon
+
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24
+
+ENV LANGUAGE='en_US:en'
+
+WORKDIR /work/
+
+COPY --from=build /project/services/user-service/build/quarkus-app/lib/ /work/lib/
+COPY --from=build /project/services/user-service/build/quarkus-app/*.jar /work/
+COPY --from=build /project/services/user-service/build/quarkus-app/app/ /work/app/
+COPY --from=build /project/services/user-service/build/quarkus-app/quarkus/ /work/quarkus/
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "/work/quarkus-run.jar"]
+

@@ -1,57 +1,20 @@
 package com.example.grocery.order
 
+import com.example.grocery.testsupport.TestJwt
 import io.quarkus.test.junit.QuarkusTest
 import io.restassured.RestAssured.given
-import io.restassured.http.ContentType
+import org.bson.types.ObjectId
 import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.Test
 
 @QuarkusTest
 class OrderResourceTest {
 
-    private fun register(username: String, password: String) {
-        given()
-            .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                    "username": "$username",
-                    "password": "$password"
-                }
-                """.trimIndent()
-            )
-            .`when`()
-            .post("/auth/register")
-            .then()
-            .statusCode(201)
-    }
-
-    private fun login(username: String, password: String): String {
-        return given()
-            .contentType(ContentType.JSON)
-            .body(
-                """
-                {
-                    "username": "$username",
-                    "password": "$password"
-                }
-                """.trimIndent()
-            )
-            .`when`()
-            .post("/auth/login")
-            .then()
-            .statusCode(200)
-            .extract()
-            .path("token")
-    }
-
     private fun createTestUserToken(): String {
-        val username = "order-user-${System.nanoTime()}"
-        val password = "password123"
-
-        register(username, password)
-        return login(username, password)
+        val userId = ObjectId().toHexString()
+        return TestJwt.generate(userId)
     }
+
 
     @Test
     fun getMyOrders_shouldRequireAuthentication() {

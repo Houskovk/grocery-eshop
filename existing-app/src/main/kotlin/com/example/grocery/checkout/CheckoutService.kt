@@ -3,11 +3,13 @@ package com.example.grocery.checkout
 import com.example.grocery.cart.CartService
 import com.example.grocery.checkout.dto.CheckoutResponse
 import com.example.grocery.client.CatalogClient
+import com.example.grocery.client.dto.UpdateBalanceRequest
+import com.example.grocery.client.UserClient
 import com.example.grocery.order.OrderItem
 import com.example.grocery.order.OrderService
-import com.example.grocery.user.UserService
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.BadRequestException
+import jakarta.ws.rs.NotFoundException
 import jakarta.ws.rs.WebApplicationException
 import org.eclipse.microprofile.rest.client.inject.RestClient
 
@@ -15,13 +17,21 @@ import org.eclipse.microprofile.rest.client.inject.RestClient
 class CheckoutService(
     @RestClient
     private val catalogClient: CatalogClient,
+    @RestClient
+    private val userClient: UserClient,
     private val cartService: CartService,
-    private  val userService: UserService,
     private val orderService: OrderService
 ) {
     fun checkout(userId: String): CheckoutResponse {
 
-        val user = userService.getUserById(userId)
+        val user = try {
+            userClient.getUser(userId)
+        } catch (e: WebApplicationException) {
+            if (e.response.status == 404) {
+                throw NotFoundException("User not found: $userId")
+            }
+            throw e
+        }
 
         val cart = cartService.getCart(userId)
 
@@ -60,9 +70,9 @@ class CheckoutService(
             throw BadRequestException("Insufficient balance")
         }
 
-        user.balanceInCents -= total
+        val remainingBalance = user.balanceInCents - total
 
-        userService.updateBalance(userId, user.balanceInCents)
+        userClient.updateBalance(userId, UpdateBalanceRequest(remainingBalance))
 
         val order = orderService.createOrder(userId, orderItems, total)
 
@@ -71,7 +81,7 @@ class CheckoutService(
         return CheckoutResponse(
             orderId = order.id.toString(),
             totalInCents = total,
-            remainingBalanceInCents = user.balanceInCents,
+            remainingBalanceInCents = remainingBalance,
             message = "Purchase completed successfully"
         )
     }

@@ -1,7 +1,7 @@
 package com.example.grocery.testsupport
 
 import com.example.grocery.client.CatalogClient
-import com.example.grocery.client.CatalogProductResponse
+import com.example.grocery.client.dto.CatalogProductResponse
 import jakarta.ws.rs.NotFoundException
 import org.bson.types.ObjectId
 

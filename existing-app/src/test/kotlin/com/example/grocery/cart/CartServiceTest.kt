@@ -1,7 +1,7 @@
 package com.example.grocery.cart
 
 import com.example.grocery.client.CatalogClient
-import com.example.grocery.client.CatalogProductResponse
+import com.example.grocery.client.dto.CatalogProductResponse
 import com.example.grocery.testsupport.MockedCatalogClient
 import io.quarkus.test.junit.QuarkusTest
 import io.quarkus.test.InjectMock
