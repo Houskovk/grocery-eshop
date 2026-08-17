@@ -2,21 +2,27 @@ package com.example.grocery.checkout
 
 import com.example.grocery.cart.CartRepository
 import com.example.grocery.cart.CartService
+import com.example.grocery.client.CatalogClient
+import com.example.grocery.client.CatalogProductResponse
 import com.example.grocery.order.OrderRepository
-import com.example.grocery.product.Product
-import com.example.grocery.product.ProductRepository
+import com.example.grocery.testsupport.MockedCatalogClient
 import com.example.grocery.user.User
 import com.example.grocery.user.UserRepository
 import io.quarkus.test.junit.QuarkusTest
+import io.quarkus.test.InjectMock
 import jakarta.inject.Inject
 import jakarta.ws.rs.BadRequestException
 import jakarta.ws.rs.NotFoundException
 import org.bson.types.ObjectId
+import org.eclipse.microprofile.rest.client.inject.RestClient
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.Mockito
 
 @QuarkusTest
 class CheckoutServiceTest {
@@ -31,18 +37,31 @@ class CheckoutServiceTest {
     lateinit var userRepository: UserRepository
 
     @Inject
-    lateinit var productRepository: ProductRepository
-
-    @Inject
     lateinit var cartRepository: CartRepository
 
     @Inject
     lateinit var orderRepository: OrderRepository
 
+    @InjectMock
+    @RestClient
+    lateinit var catalogClient: CatalogClient
+
+    private val productBackend = MockedCatalogClient()
+
+    @BeforeEach
+    fun setup() {
+        Mockito.`when`(catalogClient.getProduct(anyString())).thenAnswer { invocation ->
+            productBackend.getProduct(invocation.getArgument(0))
+        }
+        Mockito.`when`(catalogClient.getProducts()).thenAnswer {
+            productBackend.getProducts()
+        }
+    }
+
     @AfterEach
     fun cleanup() {
         userRepository.deleteAll()
-        productRepository.deleteAll()
+        productBackend.clear()
         cartRepository.deleteAll()
         orderRepository.deleteAll()
     }
@@ -59,18 +78,15 @@ class CheckoutServiceTest {
         return user
     }
 
-    private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): Product {
-        val product = Product(name = name, priceInCents = priceInCents)
-        productRepository.persist(product)
-        return product
-    }
+    private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): CatalogProductResponse =
+        productBackend.addProduct(name = name, priceInCents = priceInCents)
 
     @Test
     fun checkout_shouldCreateOrder_whenCartHasItems() {
         val user = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id.toString(), 2)
+        cartService.addItem(user.id.toString(), product.id, 2)
 
         val result = checkoutService.checkout(user.id.toString())
 
@@ -83,7 +99,7 @@ class CheckoutServiceTest {
         val user = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(name = "Milk", priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id.toString(), 2)
+        cartService.addItem(user.id.toString(), product.id, 2)
 
         checkoutService.checkout(user.id.toString())
 
@@ -104,7 +120,7 @@ class CheckoutServiceTest {
         val user = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id.toString(), 2)
+        cartService.addItem(user.id.toString(), product.id, 2)
 
         checkoutService.checkout(user.id.toString())
 
@@ -118,7 +134,7 @@ class CheckoutServiceTest {
         val user = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id.toString(), 2)
+        cartService.addItem(user.id.toString(), product.id, 2)
 
         checkoutService.checkout(user.id.toString())
 
@@ -141,7 +157,7 @@ class CheckoutServiceTest {
         val user = createTestUser(balanceInCents = 100)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id.toString(), 2)
+        cartService.addItem(user.id.toString(), product.id, 2)
 
         assertThrows(BadRequestException::class.java) {
             checkoutService.checkout(user.id.toString())
@@ -157,9 +173,9 @@ class CheckoutServiceTest {
         val user = createTestUser(balanceInCents = 10000)
         val product = createTestProduct(priceInCents = 249)
 
-        cartService.addItem(user.id.toString(), product.id.toString(), 1)
+        cartService.addItem(user.id.toString(), product.id, 1)
 
-        productRepository.deleteById(product.id!!)
+        productBackend.removeProduct(product.id)
 
         assertThrows(BadRequestException::class.java) {
             checkoutService.checkout(user.id.toString())
@@ -173,4 +189,6 @@ class CheckoutServiceTest {
         }
     }
 }
+
+
 

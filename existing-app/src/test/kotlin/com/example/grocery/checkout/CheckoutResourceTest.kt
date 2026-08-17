@@ -1,25 +1,43 @@
 package com.example.grocery.checkout
 
-import com.example.grocery.product.Product
-import com.example.grocery.product.ProductRepository
+import com.example.grocery.client.CatalogClient
+import com.example.grocery.client.CatalogProductResponse
+import com.example.grocery.testsupport.MockedCatalogClient
 import io.quarkus.test.junit.QuarkusTest
+import io.quarkus.test.InjectMock
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
-import jakarta.inject.Inject
+import org.eclipse.microprofile.rest.client.inject.RestClient
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.notNullValue
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.Mockito
 
 @QuarkusTest
 class CheckoutResourceTest {
 
-    @Inject
-    lateinit var productRepository: ProductRepository
+    @InjectMock
+    @RestClient
+    lateinit var catalogClient: CatalogClient
+
+    private val productBackend = MockedCatalogClient()
+
+    @BeforeEach
+    fun setup() {
+        Mockito.`when`(catalogClient.getProduct(anyString())).thenAnswer { invocation ->
+            productBackend.getProduct(invocation.getArgument(0))
+        }
+        Mockito.`when`(catalogClient.getProducts()).thenAnswer {
+            productBackend.getProducts()
+        }
+    }
 
     @AfterEach
     fun cleanup() {
-        productRepository.deleteAll()
+        productBackend.clear()
     }
 
     private fun register(username: String, password: String) {
@@ -66,11 +84,8 @@ class CheckoutResourceTest {
         return login(username, password)
     }
 
-    private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): Product {
-        val product = Product(name = name, priceInCents = priceInCents)
-        productRepository.persist(product)
-        return product
-    }
+    private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): CatalogProductResponse =
+        productBackend.addProduct(name = name, priceInCents = priceInCents)
 
     private fun addFunds(token: String, amountInCents: Long) {
         given()

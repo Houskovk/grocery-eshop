@@ -2,18 +2,20 @@ package com.example.grocery.checkout
 
 import com.example.grocery.cart.CartService
 import com.example.grocery.checkout.dto.CheckoutResponse
+import com.example.grocery.client.CatalogClient
 import com.example.grocery.order.OrderItem
 import com.example.grocery.order.OrderService
-import com.example.grocery.product.ProductService
 import com.example.grocery.user.UserService
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.BadRequestException
-import jakarta.ws.rs.NotFoundException
+import jakarta.ws.rs.WebApplicationException
+import org.eclipse.microprofile.rest.client.inject.RestClient
 
 @ApplicationScoped
 class CheckoutService(
+    @RestClient
+    private val catalogClient: CatalogClient,
     private val cartService: CartService,
-    private  val productService: ProductService,
     private  val userService: UserService,
     private val orderService: OrderService
 ) {
@@ -32,7 +34,14 @@ class CheckoutService(
                 throw BadRequestException("Invalid cart quantity")
             }
 
-            val product = productService.getProductById(cartItem.productId) ?: throw NotFoundException("Product not found: ${cartItem.productId}")
+            val product = try {
+                catalogClient.getProduct(cartItem.productId)
+            } catch (e: WebApplicationException) {
+                if (e.response.status == 404) {
+                    throw BadRequestException("Product no longer available: ${cartItem.productId}")
+                }
+                throw e
+            }
 
             val subtotal = product.priceInCents * cartItem.quantity
 

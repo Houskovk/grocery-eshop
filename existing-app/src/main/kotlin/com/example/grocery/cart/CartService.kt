@@ -2,15 +2,21 @@ package com.example.grocery.cart
 
 import com.example.grocery.cart.dto.CartItemResponse
 import com.example.grocery.cart.dto.CartResponse
-import com.example.grocery.product.Product
-import com.example.grocery.product.ProductRepository
+import com.example.grocery.client.CatalogClient
+import com.example.grocery.client.CatalogProductResponse
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.ws.rs.BadRequestException
 import jakarta.ws.rs.NotFoundException
+import jakarta.ws.rs.WebApplicationException
 import org.bson.types.ObjectId
+import org.eclipse.microprofile.rest.client.inject.RestClient
 
 @ApplicationScoped
-class CartService(private val cartRepository: CartRepository, private val productRepository: ProductRepository) {
+class CartService(
+    private val cartRepository: CartRepository,
+    @RestClient
+    private val catalogClient: CatalogClient
+) {
 
     private fun getOrCreateCart(userId: String): Cart {
 
@@ -113,15 +119,17 @@ class CartService(private val cartRepository: CartRepository, private val produc
         return CartResponse(items = itemResponses, total = total)
     }
 
-    private fun findProductOrThrow(productId: String): Product {
+    private fun findProductOrThrow(productId: String): CatalogProductResponse {
 
-        val objectId = try {
-            ObjectId(productId)
-        } catch (exception: IllegalArgumentException) {
-            throw NotFoundException("Product not found")
+        return try {
+            catalogClient.getProduct(productId)
+        } catch (e: WebApplicationException) {
+            if (e.response.status == 404) {
+                throw NotFoundException("Product not found: $productId")
+            } else {
+                throw e
+            }
         }
-
-        return productRepository.findById(objectId) ?: throw NotFoundException("Product not found")
     }
 
 }

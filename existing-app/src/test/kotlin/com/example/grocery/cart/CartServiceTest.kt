@@ -1,17 +1,23 @@
 package com.example.grocery.cart
 
-import com.example.grocery.product.Product
-import com.example.grocery.product.ProductRepository
+import com.example.grocery.client.CatalogClient
+import com.example.grocery.client.CatalogProductResponse
+import com.example.grocery.testsupport.MockedCatalogClient
 import io.quarkus.test.junit.QuarkusTest
+import io.quarkus.test.InjectMock
 import jakarta.inject.Inject
 import jakarta.ws.rs.BadRequestException
 import jakarta.ws.rs.NotFoundException
+import org.eclipse.microprofile.rest.client.inject.RestClient
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.bson.types.ObjectId
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.Mockito
 
 @QuarkusTest
 class CartServiceTest {
@@ -22,27 +28,37 @@ class CartServiceTest {
     @Inject
     lateinit var cartRepository: CartRepository
 
-    @Inject
-    lateinit var productRepository: ProductRepository
+    @InjectMock
+    @RestClient
+    lateinit var catalogClient: CatalogClient
+
+    private val productBackend = MockedCatalogClient()
+
+    @BeforeEach
+    fun setup() {
+        Mockito.`when`(catalogClient.getProduct(anyString())).thenAnswer { invocation ->
+            productBackend.getProduct(invocation.getArgument(0))
+        }
+        Mockito.`when`(catalogClient.getProducts()).thenAnswer {
+            productBackend.getProducts()
+        }
+    }
 
     @AfterEach
     fun cleanup() {
         cartRepository.deleteAll()
-        productRepository.deleteAll()
+        productBackend.clear()
     }
 
-    private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): Product {
-        val product = Product(name = name, priceInCents = priceInCents)
-        productRepository.persist(product)
-        return product
-    }
+    private fun createTestProduct(name: String = "Milk", priceInCents: Long = 249): CatalogProductResponse =
+        productBackend.addProduct(name = name, priceInCents = priceInCents)
 
     @Test
     fun addItem_shouldAddNewProduct_whenProductNotAlreadyInCart() {
         val userId = "test-user-${System.nanoTime()}"
         val product = createTestProduct()
 
-        cartService.addItem(userId, product.id.toString(), 1)
+        cartService.addItem(userId, product.id, 1)
 
         val cart = cartService.getCart(userId)
 
@@ -55,8 +71,8 @@ class CartServiceTest {
         val userId = "test-user-${System.nanoTime()}"
         val product = createTestProduct()
 
-        cartService.addItem(userId, product.id.toString(), 1)
-        cartService.addItem(userId, product.id.toString(), 2)
+        cartService.addItem(userId, product.id, 1)
+        cartService.addItem(userId, product.id, 2)
 
         val cart = cartService.getCart(userId)
 
@@ -69,8 +85,8 @@ class CartServiceTest {
         val userId = "test-user-${System.nanoTime()}"
         val product = createTestProduct()
 
-        cartService.addItem(userId, product.id.toString(), 1)
-        cartService.updateQuantity(userId, product.id.toString(), 5)
+        cartService.addItem(userId, product.id, 1)
+        cartService.updateQuantity(userId, product.id, 5)
 
         val cart = cartService.getCart(userId)
 
@@ -82,8 +98,8 @@ class CartServiceTest {
         val userId = "test-user-${System.nanoTime()}"
         val product = createTestProduct()
 
-        cartService.addItem(userId, product.id.toString(), 1)
-        cartService.removeItem(userId, product.id.toString())
+        cartService.addItem(userId, product.id, 1)
+        cartService.removeItem(userId, product.id)
 
         val cart = cartService.getCart(userId)
 
@@ -96,8 +112,8 @@ class CartServiceTest {
         val firstProduct = createTestProduct(name = "Milk")
         val secondProduct = createTestProduct(name = "Bread")
 
-        cartService.addItem(userId, firstProduct.id.toString(), 1)
-        cartService.addItem(userId, secondProduct.id.toString(), 2)
+        cartService.addItem(userId, firstProduct.id, 1)
+        cartService.addItem(userId, secondProduct.id, 2)
 
         cartService.clearCart(userId)
 
@@ -112,7 +128,7 @@ class CartServiceTest {
         val product = createTestProduct()
 
         assertThrows(BadRequestException::class.java) {
-            cartService.addItem(userId, product.id.toString(), 0)
+            cartService.addItem(userId, product.id, 0)
         }
     }
 
@@ -122,7 +138,7 @@ class CartServiceTest {
         val product = createTestProduct()
 
         assertThrows(BadRequestException::class.java) {
-            cartService.addItem(userId, product.id.toString(), -10)
+            cartService.addItem(userId, product.id, -10)
         }
     }
 
@@ -131,7 +147,7 @@ class CartServiceTest {
         val userId = "test-user-${System.nanoTime()}"
 
         assertThrows(NotFoundException::class.java) {
-            cartService.addItem(userId, ObjectId().toString(), 1)
+            cartService.addItem(userId, ObjectId().toHexString(), 1)
         }
     }
 
@@ -140,10 +156,10 @@ class CartServiceTest {
         val userId = "test-user-${System.nanoTime()}"
         val product = createTestProduct()
 
-        cartService.addItem(userId, product.id.toString(), 1)
+        cartService.addItem(userId, product.id, 1)
 
         assertThrows(BadRequestException::class.java) {
-            cartService.updateQuantity(userId, product.id.toString(), 0)
+            cartService.updateQuantity(userId, product.id, 0)
         }
     }
 
@@ -152,10 +168,10 @@ class CartServiceTest {
         val userId = "test-user-${System.nanoTime()}"
         val product = createTestProduct()
 
-        cartService.addItem(userId, product.id.toString(), 1)
+        cartService.addItem(userId, product.id, 1)
 
         assertThrows(BadRequestException::class.java) {
-            cartService.updateQuantity(userId, product.id.toString(), -5)
+            cartService.updateQuantity(userId, product.id, -5)
         }
     }
 
@@ -165,10 +181,12 @@ class CartServiceTest {
         val product = createTestProduct()
 
         assertThrows(NotFoundException::class.java) {
-            cartService.updateQuantity(userId, product.id.toString(), 1)
+            cartService.updateQuantity(userId, product.id, 1)
         }
     }
 }
+
+
 
 
 
