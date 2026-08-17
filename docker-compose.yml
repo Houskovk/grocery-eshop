@@ -5,7 +5,33 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - grocery_mongodb_data:/data/db
+      - grocery-mongodb-data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: src/main/docker/Dockerfile.jvm
+    container_name: grocery-eshop
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
+      MONGODB_DATABASE: ${MONGODB_DATABASE}
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_TOKEN_LIFESPAN: ${JWT_TOKEN_LIFESPAN}
+      JWT_SIGN_KEY_LOCATION: /work/keys/privateKey.pem
+      JWT_VERIFY_KEY_LOCATION: /work/keys/publicKey.pem
+    volumes:
+      - ./src/main/resources/keys:/work/keys:ro
 
 volumes:
-  grocery_mongodb_data:
+  grocery-mongodb-data:
