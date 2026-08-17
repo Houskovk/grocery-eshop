@@ -40,6 +40,6 @@ nb-configuration.xml
 # TLS Certificates
 .certs/
 /src/main/resources/keys/
-/existing-app/src/main/resources/keys/
 /services/user-service/src/main/resources/keys/
-/existing-app/src/test/resources/keys/
+/services/order-service/src/main/resources/keys/
+/services/order-service/src/test/resources/keys/

@@ -49,11 +49,11 @@ services:
     ports:
       - "8082:8080"
 
-  app:
+  order-service:
     build:
       context: .
-      dockerfile: existing-app/src/main/docker/Dockerfile.jvm
-    container_name: grocery-eshop
+      dockerfile: services/order-service/src/main/docker/Dockerfile.jvm
+    container_name: grocery-order-service
     depends_on:
       mongodb:
         condition: service_healthy
@@ -61,20 +61,37 @@ services:
         condition: service_started
       user-service:
         condition: service_started
-    ports:
-      - "8080:8080"
     environment:
-      QUARKUS_REST_CLIENT_CATALOG_API_URL: http://catalog-service:8080
-      QUARKUS_REST_CLIENT_USER_API_URL: http://user-service:8080
+      HTTP_PORT: 8080
       MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
-      MONGODB_DATABASE: ${MONGODB_DATABASE}
+      MONGODB_DATABASE: eshop_orders
+      CATALOG_API_URL: http://catalog-service:8080
+      USER_API_URL: http://user-service:8080
       JWT_ISSUER: ${JWT_ISSUER}
-      JWT_TOKEN_LIFESPAN: ${JWT_TOKEN_LIFESPAN}
-      JWT_SIGN_KEY_LOCATION: /work/keys/privateKey.pem
       JWT_VERIFY_KEY_LOCATION: /work/keys/publicKey.pem
     volumes:
-      - ./existing-app/src/main/resources/keys:/work/keys:ro
+      - ./services/order-service/src/main/resources/keys:/work/keys:ro
+    ports:
+      - "8083:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: grocery-frontend
+    depends_on:
+      catalog-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+    ports:
+      - "8080:80"
 
 
 volumes:
   grocery-mongodb-data:
+
+
+

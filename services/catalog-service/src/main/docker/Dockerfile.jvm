@@ -7,7 +7,6 @@ COPY gradle gradle
 COPY settings.gradle.kts .
 COPY gradle.properties .
 
-COPY --chown=185:0 existing-app existing-app
 COPY --chown=185:0 services services
 
 RUN sh ./gradlew :services:catalog-service:build -x test --no-daemon
