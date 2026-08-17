@@ -13,25 +13,85 @@ services:
       retries: 10
       start_period: 10s
 
-  app:
+  catalog-service:
     build:
       context: .
-      dockerfile: src/main/docker/Dockerfile.jvm
-    container_name: grocery-eshop
+      dockerfile: services/catalog-service/src/main/docker/Dockerfile.jvm
+    container_name: grocery-catalog-service
     depends_on:
       mongodb:
         condition: service_healthy
-    ports:
-      - "8080:8080"
     environment:
+      HTTP_PORT: 8080
       MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
-      MONGODB_DATABASE: ${MONGODB_DATABASE}
+      MONGODB_DATABASE: eshop-catalog
+    ports:
+      - "8081:8080"
+
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user-service/src/main/docker/Dockerfile.jvm
+    container_name: grocery-user-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      HTTP_PORT: 8080
+      MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
+      MONGODB_DATABASE: eshop_users
       JWT_ISSUER: ${JWT_ISSUER}
       JWT_TOKEN_LIFESPAN: ${JWT_TOKEN_LIFESPAN}
       JWT_SIGN_KEY_LOCATION: /work/keys/privateKey.pem
       JWT_VERIFY_KEY_LOCATION: /work/keys/publicKey.pem
     volumes:
-      - ./src/main/resources/keys:/work/keys:ro
+      - ./services/user-service/src/main/resources/keys:/work/keys:ro
+    ports:
+      - "8082:8080"
+
+  order-service:
+    build:
+      context: .
+      dockerfile: services/order-service/src/main/docker/Dockerfile.jvm
+    container_name: grocery-order-service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      catalog-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+    environment:
+      HTTP_PORT: 8080
+      MONGODB_CONNECTION_STRING: mongodb://mongodb:27017
+      MONGODB_DATABASE: eshop_orders
+      CATALOG_API_URL: http://catalog-service:8080
+      USER_API_URL: http://user-service:8080
+      JWT_ISSUER: ${JWT_ISSUER}
+      JWT_VERIFY_KEY_LOCATION: /work/keys/publicKey.pem
+    volumes:
+      - ./services/order-service/src/main/resources/keys:/work/keys:ro
+    ports:
+      - "8083:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: grocery-frontend
+    depends_on:
+      catalog-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+    ports:
+      - "8080:80"
+
 
 volumes:
   grocery-mongodb-data:
+
+
+
